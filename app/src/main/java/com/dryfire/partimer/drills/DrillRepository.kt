@@ -2,8 +2,11 @@ package com.dryfire.partimer.drills
 
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
+import com.dryfire.partimer.activity.ActivityDao
+import com.dryfire.partimer.activity.ActivityLevels
+import com.dryfire.partimer.activity.ActivityLog
 
-class DrillRepository(private val dao: DrillDao) {
+class DrillRepository(private val dao: DrillDao, private val activityDao: ActivityDao) {
     val drills: Flow<List<DrillEntity>> = dao.observeAll()
 
     suspend fun seedIfEmpty() {
@@ -85,4 +88,20 @@ class DrillRepository(private val dao: DrillDao) {
 
     suspend fun delete(id: String) = dao.deleteById(id)
     suspend fun get(id: String) = dao.getById(id)
+
+    val activity: Flow<List<ActivityLog>> =
+        activityDao.observeSince(ActivityLevels.daysAgoKey(60))
+
+    /** Record a completed drill run for the activity tracker. */
+    suspend fun logSession(drillId: String, drillName: String, reps: Int) {
+        if (reps <= 0) return
+        activityDao.insert(
+            ActivityLog(
+                dayKey = ActivityLevels.todayKey(),
+                drillId = drillId,
+                drillName = drillName,
+                reps = reps
+            )
+        )
+    }
 }

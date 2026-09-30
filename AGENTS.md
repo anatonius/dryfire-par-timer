@@ -21,8 +21,9 @@ gradle :app:assembleDebug :app:testDebugUnitTest --console=plain
 ```
 
 APK: `app/build/outputs/apk/debug/app-debug.apk`. Unit tests must stay green
-(`TimerConfigTest`). There is no emulator system image by default; prefer
-`adb install -r` on a physical phone for smoke tests.
+(`TimerConfigTest`, `ActivityLevelsTest`, `DefaultDrillsTest`). There is no
+emulator system image by default; prefer `adb install -r` on a physical phone
+for smoke tests.
 
 ## Conventions
 
@@ -36,7 +37,14 @@ APK: `app/build/outputs/apk/debug/app-debug.apk`. Unit tests must stay green
   `DrillRepository.saveTimer()` on START.
 - Room is on `fallbackToDestructiveMigration`; bump `version` in
   `DrillDatabase.kt` on entity changes. Keep `sortOrder` seeding in plan
-  order (see `DefaultDrills.all`).
+  order (see `DefaultDrills.all`). Default-value-only changes need no
+  migration, but existing installs only get them via Reset defaults
+  (`seedIfEmpty` runs on empty DB only).
+- Built-in drill defaults live in `DefaultDrills` (+ delay fields on `Drill`);
+  new-drill defaults live in the `showAdd` save call in `MainActivity`.
+  `DefaultDrillsTest` pins both values and order — update it with any change.
+- Drill descriptions cap at `MAX_DESCRIPTION_LENGTH` (180) so they fit the
+  4-row box; enforced in `DrillEditDialog`, pinned by test.
 - `ParTimerEngine` stays Android-free (default clock is
   `System.currentTimeMillis`) so logic remains unit-testable. Audio
   (`BeepPlayer`, `StandbySpeaker`) stays in the UI layer.

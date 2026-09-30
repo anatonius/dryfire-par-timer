@@ -9,9 +9,10 @@ import kotlinx.coroutines.launch
 
 class DrillViewModel(app: Application) : AndroidViewModel(app) {
     private val repo: DrillRepository =
-        DrillRepository(DrillDatabase.get(app).drillDao())
+        DrillRepository(DrillDatabase.get(app).drillDao(), DrillDatabase.get(app).activityDao())
 
     val drills = repo.drills.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val activity = repo.activity.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         viewModelScope.launch { repo.seedIfEmpty() }
@@ -50,4 +51,7 @@ class DrillViewModel(app: Application) : AndroidViewModel(app) {
     ) = viewModelScope.launch {
         repo.saveTimer(id, par, reps, prep, delayMin, delayMax, seriesEnabled, seriesSteps, seriesStart, seriesEnd, seriesStepReps)
     }
+
+    fun logSession(drillId: String, drillName: String, reps: Int) =
+        viewModelScope.launch { repo.logSession(drillId, drillName, reps) }
 }

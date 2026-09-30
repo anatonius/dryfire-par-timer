@@ -38,7 +38,7 @@ data class TimerConfig(
     val reps: Int = 10,
     /** random delay before START beep */
     val delayMinSeconds: Double = 2.0,
-    val delayMaxSeconds: Double = 5.0,
+    val delayMaxSeconds: Double = 4.0,
     /** preparation time between reps */
     val preparationSeconds: Double = 2.0,
     val series: List<SeriesStep> = emptyList(),

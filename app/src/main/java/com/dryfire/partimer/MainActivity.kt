@@ -21,6 +21,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.dryfire.partimer.drills.DrillEntity
 import com.dryfire.partimer.drills.DrillViewModel
+import com.dryfire.partimer.drills.MAX_DESCRIPTION_LENGTH
 import com.dryfire.partimer.settings.SettingsStore
 import com.dryfire.partimer.timer.BeepConfig
 import com.dryfire.partimer.timer.BeepPlayer
@@ -47,22 +48,63 @@ fun App(vm: DrillViewModel = viewModel()) {
     val settingsStore = remember { SettingsStore(context) }
     val beepDefaults by settingsStore.timerDefaults.collectAsState(initial = TimerConfig())
     var runConfig by remember { mutableStateOf(TimerConfig()) }
+    var runDrillId by remember { mutableStateOf("") }
+    var runDrillName by remember { mutableStateOf("") }
     DryFireTheme {
-        NavHost(nav, startDestination = "home") {
+        NavHost(nav, startDestination = "splash") {
+            composable("splash") {
+                SplashRoute(onDone = {
+                    nav.navigate("home") { popUpTo("splash") { inclusive = true } }
+                })
+            }
             composable("home") {
                 DrillHomeScreen(
                     beeps = beepDefaults,
-                    onStart = { cfg -> runConfig = cfg; nav.navigate("run") },
-                    onSettings = { nav.navigate("settings") }
+                    onStart = { cfg, drill ->
+                        runConfig = cfg
+                        runDrillId = drill.id
+                        runDrillName = drill.name
+                        nav.navigate("run")
+                    },
+                    onSettings = { nav.navigate("settings") },
+                    onActivity = { nav.navigate("activity") }
                 )
             }
             composable("run") {
-                TimerRunScreen(config = runConfig, onBack = { nav.popBackStack() })
+                TimerRunScreen(
+                    config = runConfig,
+                    drillId = runDrillId,
+                    drillName = runDrillName,
+                    onBack = { nav.popBackStack() }
+                )
             }
             composable("settings") {
                 SettingsScreen(onBack = { nav.popBackStack() })
             }
+            composable("activity") {
+                ActivityScreen(onBack = { nav.popBackStack() })
+            }
         }
+    }
+}
+
+/** Logo load screen: cropped emblem on black, shown for 4 seconds on launch. */
+@Composable
+fun SplashRoute(onDone: () -> Unit) {
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(4000)
+        onDone()
+    }
+    androidx.compose.foundation.layout.Box(
+        Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black),
+        contentAlignment = androidx.compose.ui.Alignment.Center
+    ) {
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(R.drawable.splash_logo),
+            contentDescription = "Dry Fire Par Timer",
+            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+            modifier = Modifier.fillMaxWidth(0.9f)
+        )
     }
 }
 
@@ -72,8 +114,9 @@ fun App(vm: DrillViewModel = viewModel()) {
 fun DrillHomeScreen(
     vm: DrillViewModel = viewModel(),
     beeps: TimerConfig,
-    onStart: (TimerConfig) -> Unit,
-    onSettings: () -> Unit
+    onStart: (TimerConfig, DrillEntity) -> Unit,
+    onSettings: () -> Unit,
+    onActivity: () -> Unit
 ) {
     val drills by vm.drills.collectAsState()
     val pager = rememberPagerState(pageCount = { drills.size })
@@ -124,6 +167,7 @@ fun DrillHomeScreen(
                                 enabled = drills.isNotEmpty()
                             )
                             DropdownMenuItem(text = { Text("Beep settings") }, onClick = { menu = false; onSettings() })
+                            DropdownMenuItem(text = { Text("Activity") }, onClick = { menu = false; onActivity() })
                             DropdownMenuItem(text = { Text("Reset defaults") }, onClick = { menu = false; showReset = true })
                         }
                     }
@@ -183,7 +227,7 @@ fun DrillHomeScreen(
     if (showAdd) {
         DrillEditDialog(
             existing = null,
-            onSave = { name, desc -> vm.save(null, name, desc, 2.0, 10, 2.0, 2.0, 5.0) {} },
+            onSave = { name, desc -> vm.save(null, name, desc, 2.0, 10, 4.0, 2.0, 4.0) {} },
             onDismiss = { showAdd = false }
         )
     }
@@ -241,7 +285,9 @@ fun DrillEditDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(name, { name = it }, label = { Text("Title") })
                 OutlinedTextField(
-                    desc, { desc = it }, label = { Text("Description") },
+                    desc, { if (it.length <= MAX_DESCRIPTION_LENGTH) desc = it },
+                    label = { Text("Description") },
+                    supportingText = { Text("${desc.length}/$MAX_DESCRIPTION_LENGTH") },
                     minLines = 3, modifier = Modifier.height(140.dp)
                 )
             }
@@ -256,7 +302,7 @@ fun DrillScreen(
     number: Int,
     beeps: TimerConfig,
     vm: DrillViewModel = viewModel(),
-    onStart: (TimerConfig) -> Unit
+    onStart: (TimerConfig, DrillEntity) -> Unit
 ) {
     var par by remember(drill) { mutableStateOf(trimNum(drill.timerPar)) }
     var reps by remember(drill) { mutableStateOf(drill.timerReps.toString()) }
@@ -292,7 +338,7 @@ fun DrillScreen(
         Text(
             drill.description,
             style = MaterialTheme.typography.bodySmall,
-            maxLines = 2,
+            maxLines = 4,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
         )
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -328,7 +374,7 @@ fun DrillScreen(
         val repsVal = reps.toIntOrNull() ?: drill.timerReps
         val prepVal = prep.toDoubleOrNull() ?: drill.timerPrep
         val dMinVal = delayMin.toDoubleOrNull() ?: 2.0
-        val dMaxVal = (delayMax.toDoubleOrNull() ?: 5.0).coerceAtLeast(dMinVal)
+        val dMaxVal = (delayMax.toDoubleOrNull() ?: 4.0).coerceAtLeast(dMinVal)
         val stepsVal = numSteps.toIntOrNull() ?: 0
         val startVal = startTime.toDoubleOrNull() ?: parVal
         val endVal = endTime.toDoubleOrNull() ?: parVal
@@ -350,7 +396,8 @@ fun DrillScreen(
                         startBeep = beeps.startBeep,
                         stopBeep = beeps.stopBeep,
                         endBeep = beeps.endBeep
-                    )
+                    ),
+                    drill
                 )
             },
             modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -388,7 +435,13 @@ fun trimNum(d: Double): String =
     if (d % 1.0 == 0.0) d.toInt().toString() else d.toString()
 
 @Composable
-fun TimerRunScreen(config: TimerConfig, onBack: () -> Unit) {
+fun TimerRunScreen(
+    config: TimerConfig,
+    drillId: String,
+    drillName: String,
+    vm: DrillViewModel = viewModel(),
+    onBack: () -> Unit
+) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val engine = remember { ParTimerEngine() }
@@ -463,13 +516,14 @@ fun TimerRunScreen(config: TimerConfig, onBack: () -> Unit) {
                     } else {
                         scope.launch {
                             running = true
-                            engine.run(
+                            val done = engine.run(
                                 config,
                                 onStartBeep = { beeps.playStart(config.startBeep) },
                                 onStopBeep = { beeps.playStop(config.stopBeep) },
                                 onEndBeep = { beeps.playEnd(config.endBeep) }
                             )
                             running = false
+                            if (done) vm.logSession(drillId, drillName, config.totalReps())
                         }
                     }
                 },
