@@ -64,14 +64,23 @@ gradle :app:testDebugUnitTest      # unit tests
 
 ## Install on a phone
 
-```bash
-export PATH=~/Android/Sdk/platform-tools:$PATH
-adb devices
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
+All commands run on your **PC**, not on the phone.
 
-Enable USB debugging on the phone first (tap Build number 7x, then allow the
-RSA prompt when plugging in).
+1. On the phone: Settings → About phone → tap Build number 7x → Developer
+   options → enable **USB debugging**. Plug it into the PC and tap **Allow**.
+2. On the PC (the `adb` syntax is identical on Linux and Windows):
+   - **Linux:** `sudo apt install adb` (Debian/Ubuntu) or
+     `sudo pacman -S android-tools` (Arch)
+   - **Windows:** install
+     [platform-tools](https://developer.android.com/tools/releases/platform-tools)
+     and use `adb.exe`; install the
+     [Google USB driver](https://developer.android.com/studio/run/win-usb)
+     if the phone is not detected
+
+```bash
+adb devices                          # phone must show as 'device'
+adb install -r app-debug.apk         # or the full path to the built APK
+```
 
 ## Project layout
 
